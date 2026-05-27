@@ -3,10 +3,11 @@
 import {
   TIANGAN, DIZHI, JIAZI, WUXING, NAYIN, DIZHI_CANGGAN,
   getShishen, buildDayunList, generateKlineData, parseGanZhi,
-  getYearGzBySolar, getMonthGzBySolar, getHourZhi
-} from './bazi.js?v=20260527-3';
-import { generateAnalysis } from './analysis.js?v=20260527-3';
-import { KlineChart } from './kline.js?v=20260527-3';
+  getYearGzBySolar, getMonthGzBySolar, getHourZhi,
+  lookupBaziBySolarPrecise
+} from './bazi.js?v=20260527-4';
+import { generateAnalysis } from './analysis.js?v=20260527-4';
+import { KlineChart } from './kline.js?v=20260527-4';
 
 // 全局状态
 export const state = {
@@ -164,9 +165,11 @@ function renderLanding(container) {
               <div id="lookup-result" class="hidden bg-white rounded-lg p-3 border border-purple-200 text-xs space-y-1.5">
                 <div class="flex justify-between"><span class="text-gray-500">年柱</span><span id="lookup-year-gz" class="font-semibold text-gray-900 font-serif-sc">--</span></div>
                 <div class="flex justify-between"><span class="text-gray-500">月柱（参考）</span><span id="lookup-month-gz" class="font-semibold text-gray-900 font-serif-sc">--</span></div>
-                <div class="flex justify-between"><span class="text-gray-500">时支</span><span id="lookup-hour-zhi" class="font-semibold text-gray-900 font-serif-sc">--</span></div>
-                <div class="mt-2 pt-2 border-t border-dashed border-purple-200 text-[10px] text-amber-700 bg-amber-50 -mx-3 -mb-3 px-3 py-2 rounded-b-lg">
-                  ⚠️ <strong>日柱必须查万年历</strong>（本工具无法精确推算）。请用百度搜索"X年X月X日 八字"或打开"问真八字/玄奥八字"APP，将得到的 4 个干支填入下方。
+                <div class="flex justify-between"><span class="text-gray-500"><strong>日柱（自动）</strong></span><span id="lookup-day-gz" class="font-semibold text-green-700 font-serif-sc">--</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">时支（按时辰）</span><span id="lookup-hour-zhi" class="font-semibold text-gray-900 font-serif-sc">--</span></div>
+                <div class="mt-2 pt-2 border-t border-dashed border-purple-200 text-[10px] text-emerald-700 bg-emerald-50 -mx-3 -mb-3 px-3 py-2 rounded-b-lg">
+                  ✅ <strong>日柱已自动反查</strong>（基准 1900-01-01 = 甲戌日，60天循环，1900-2100 有效）。<br/>
+                  ℹ️ 年柱按立春、月柱按节气、时支按出生时辰，均为参考值；<strong>时干需按"日上起时"口诀补全</strong>：甲己还加甲，乙庚丙作初，丙辛从戊起，丁壬庚子居，戊癸壬子起。
                 </div>
               </div>
             </div>
@@ -347,9 +350,10 @@ function attachLandingHandlers(container) {
   const lookupResult = container.querySelector('#lookup-result');
   const lookupYearGzEl = container.querySelector('#lookup-year-gz');
   const lookupMonthGzEl = container.querySelector('#lookup-month-gz');
+  const lookupDayGzEl = container.querySelector('#lookup-day-gz');
   const lookupHourZhiEl = container.querySelector('#lookup-hour-zhi');
 
-  // 干支速查按钮
+  // 干支速查按钮（精确反查）
   if (lookupBtn) {
     lookupBtn.addEventListener('click', () => {
       const y = parseInt(lookupYear.value);
@@ -360,38 +364,44 @@ function attachLandingHandlers(container) {
         alert('请填写有效的阳历日期（1900-2100）');
         return;
       }
-      const yearGz = getYearGzBySolar(y, m, d);
-      const monthZhi = getMonthGzBySolar(m);
-      // 月干推算：甲己之年丙作首，乙庚之岁戊为头...
-      const yangStemStart = { '甲': 2, '己': 2, '乙': 4, '庚': 4, '丙': 6, '辛': 6, '丁': 8, '壬': 8, '戊': 0, '癸': 0 };
-      const yearGan = yearGz.charAt(0);
-      const startGanIdx = yangStemStart[yearGan] ?? 0;
-      const zhiToIdx = { '寅': 2, '卯': 3, '辰': 4, '巳': 5, '午': 6, '未': 7, '申': 8, '酉': 9, '戌': 10, '亥': 11, '子': 0, '丑': 1 };
-      const monthGanIdx = (startGanIdx + zhiToIdx[monthZhi]) % 10;
-      const monthGz = TIANGAN[monthGanIdx] + monthZhi;
-
-      // 时支
-      let hourZhi = '--';
-      if (h !== null) {
-        hourZhi = getHourZhi(h);
-        // 时干
-        // 用户还没填日柱，无法推时干；只显示时支
+      if (h !== null && (h < 0 || h > 23)) {
+        alert('时辰应在 0-23 之间');
+        return;
       }
 
-      lookupYearGzEl.textContent = yearGz;
-      lookupMonthGzEl.textContent = monthGz;
-      lookupHourZhiEl.textContent = hourZhi;
+      // 使用精确反查（基于 1900-01-01 = 甲戌日 基准 + JS Date 计算天数差）
+      const result = lookupBaziBySolarPrecise(y, m, d, h);
+
+      lookupYearGzEl.textContent = result.yearGz;
+      lookupMonthGzEl.textContent = result.monthGz;
+      lookupDayGzEl.textContent = result.dayGz;
+      lookupHourZhiEl.textContent = result.hourZhi || '--';
       lookupResult.classList.remove('hidden');
 
-      // 自动填入年柱、月柱、时柱输入框（如果为空）
-      if (!state.form.yearGz) state.form.yearGz = yearGz;
+      // 自动填入四个输入框（仅在空白时填入，不覆盖用户已输入的值）
       const yearInput = container.querySelector('[data-pillar="yearGz"]');
-      if (yearInput && !yearInput.value) yearInput.value = yearGz;
       const monthInput = container.querySelector('[data-pillar="monthGz"]');
-      if (monthInput && !monthInput.value) monthInput.value = monthGz;
-      if (h !== null) {
-        const hourInput = container.querySelector('[data-pillar="hourGz"]');
-        if (hourInput && !hourInput.value) hourInput.value = hourZhi;  // 注意：这里只填了时支，需手动补时干
+      const dayInput = container.querySelector('[data-pillar="dayGz"]');
+      const hourInput = container.querySelector('[data-pillar="hourGz"]');
+
+      if (yearInput && !yearInput.value) {
+        yearInput.value = result.yearGz;
+        state.form.yearGz = result.yearGz;
+      }
+      if (monthInput && !monthInput.value) {
+        monthInput.value = result.monthGz;
+        state.form.monthGz = result.monthGz;
+      }
+      if (dayInput && !dayInput.value) {
+        dayInput.value = result.dayGz;
+        state.form.dayGz = result.dayGz;
+      }
+      if (hourInput && !hourInput.value && result.hourZhi) {
+        // 时柱只填了时支，时干需要日干推算
+        hourInput.value = result.hourZhi + '?';
+        // 提示用户补时干
+        hourInput.placeholder = '时干+?';
+        state.form.hourGz = hourInput.value;
       }
       pillarPreview.innerHTML = renderPillarPreview();
     });

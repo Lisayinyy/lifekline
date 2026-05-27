@@ -1,7 +1,7 @@
 // main.js - 应用入口
-// version: 20260527-3
+// version: 20260527-4
 
-import { renderApp, state } from './pages.js?v=20260527-3';
+import { renderApp, state } from './pages.js?v=20260527-4';
 
 console.log('[lifekline] main.js loaded');
 

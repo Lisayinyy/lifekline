@@ -3,7 +3,7 @@
 import {
   TIANGAN, DIZHI, WUXING, DIZHI_CANGGAN, JIAZI, NAYIN,
   TIANGAN_YINYANG, getShishen, parseGanZhi
-} from './bazi.js?v=20260527-3';
+} from './bazi.js?v=20260527-4';
 
 // 生成完整命理分析
 export function generateAnalysis(pillars, dayMaster, klineData, dayunList) {

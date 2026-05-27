@@ -1,6 +1,6 @@
 // kline.js - Canvas K线图绘制
 
-import { TIANGAN, DIZHI, WUXING, WUXING_COLOR } from './bazi.js?v=20260527-3';
+import { TIANGAN, DIZHI, WUXING, WUXING_COLOR } from './bazi.js?v=20260527-4';
 
 export class KlineChart {
   constructor(canvas) {

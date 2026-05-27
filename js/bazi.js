@@ -639,3 +639,63 @@ export function lookupBaziBySolar(year, month, day, hour, dayGz) {
     notes: '年柱/时柱按公历推算（误差±1天），月柱按节气粗略划分，**日柱需查万年历**'
   };
 }
+
+// ============ 日柱精确反查（基于基准日 1900-01-01 = 甲戌日） ============
+
+/**
+ * 阳历日期 → 日柱干支（精确到日，1900-2100 有效）
+ * 基准日：1900年1月1日 = 甲戌日（60甲子序号 11，0-indexed=10）
+ * 注意：日干支是 60 天一循环的"儒略日"传统，无需节气校正
+ * @param {number} year 阳历年 1900-2100
+ * @param {number} month 阳历月 1-12
+ * @param {number} day 阳历日 1-31
+ * @returns {string} 日柱干支
+ */
+export function getDayGzBySolar(year, month, day) {
+  // 用 UTC 计算天数差，避免时区影响
+  const target = Date.UTC(year, month - 1, day);
+  const base = Date.UTC(1900, 0, 1);
+  const diffDays = Math.round((target - base) / 86400000);
+  // 1900-01-01 是 JIAZI[10] = 甲戌
+  const idx = ((10 + diffDays) % 60 + 60) % 60;
+  return JIAZI[idx];
+}
+
+/**
+ * 完整反查 v2：含精确日柱
+ * @param {number} year 阳历年
+ * @param {number} month 阳历月
+ * @param {number} day 阳历日
+ * @param {number} hour 阳历时 0-23（可选，null 表示不详）
+ * @returns {object} { yearGz, monthGz, dayGz, hourZhi, dayMaster, precision, notes }
+ */
+export function lookupBaziBySolarPrecise(year, month, day, hour = null) {
+  // 1. 年柱（仍按立春粗略规则，2/4 前用上年）
+  const yearGz = getYearGzBySolar(year, month, day);
+
+  // 2. 月柱（仍按节气粗略分月，误差 ±1-2 天）
+  const monthZhi = getMonthGzBySolar(month);
+  const yearGan = yearGz.charAt(0);
+  const yangStemStart = { '甲': 2, '己': 2, '乙': 4, '庚': 4, '丙': 6, '辛': 6, '丁': 8, '壬': 8, '戊': 0, '癸': 0 };
+  const startGanIdx = yangStemStart[yearGan] ?? 0;
+  const zhiToIdx = { '寅': 2, '卯': 3, '辰': 4, '巳': 5, '午': 6, '未': 7, '申': 8, '酉': 9, '戌': 10, '亥': 11, '子': 0, '丑': 1 };
+  const monthGanIdx = (startGanIdx + zhiToIdx[monthZhi]) % 10;
+  const monthGz = TIANGAN[monthGanIdx] + monthZhi;
+
+  // 3. 日柱（精确，按儒略日推算）
+  const dayGz = getDayGzBySolar(year, month, day);
+  const dayMaster = dayGz.charAt(0);
+
+  // 4. 时支（按时辰表）
+  const hourZhi = (hour !== null) ? getHourZhi(hour) : null;
+
+  return {
+    yearGz,
+    monthGz,
+    dayGz,
+    hourZhi,
+    dayMaster,
+    precision: 'precise-day',
+    notes: '日柱按儒略日精确推算（误差 0），年柱/时柱/时支按公历换算（误差±1天），月柱按节气粗略划分（误差±2天）'
+  };
+}
