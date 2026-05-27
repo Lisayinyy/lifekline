@@ -1,0 +1,4 @@
+# 预览图片和临时文件
+preview/
+.DS_Store
+.opencode/

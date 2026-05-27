@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>人生K线 - AI命运分身</title>
+  <meta name="description" content="人生K线｜命运可视化，将传统八字命理与现代数据可视化结合，通过生辰八字生成专属人生运势K线图。" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='28' fill='%231e3a8a'/><path d='M32 12 L36 28 L52 32 L36 36 L32 52 L28 36 L12 32 L28 28 Z' fill='%23fbbf24'/></svg>" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@400;500;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=EB+Garamond:wght@500;600&display=swap');
+
+    :root {
+      --bg-primary: #ffffff;
+      --bg-soft: #fafaf9;
+      --text-primary: #1f2937;
+      --text-secondary: #6b7280;
+      --border-soft: #e5e7eb;
+      --brand-navy: #1e3a8a;
+      --brand-navy-deep: #172554;
+      --brand-blue: #3b82f6;
+      --brand-purple: #8b5cf6;
+      --bullish: #16a34a;
+      --bullish-bg: #dcfce7;
+      --bearish: #dc2626;
+      --bearish-bg: #fee2e2;
+      --orange-soft: #fff7ed;
+      --orange-border: #fed7aa;
+      --blue-soft: #eff6ff;
+      --blue-border: #bfdbfe;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      min-height: 100vh;
+    }
+
+    .font-serif-sc { font-family: 'Noto Serif SC', serif; }
+    .font-serif-da { font-family: 'Crimson Text', Georgia, 'Noto Serif SC', serif; }
+    .font-display-da { font-family: 'EB Garamond', 'Crimson Text', Georgia, serif; }
+
+    /* Gradient text */
+    .gradient-text {
+      background: linear-gradient(135deg, #1e3a8a 0%, #6d28d9 50%, #8b5cf6 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* Scrollbar */
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 8px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+    /* Toggle button */
+    .toggle-btn {
+      transition: all 0.2s ease;
+      cursor: pointer;
+      user-select: none;
+    }
+    .toggle-btn.active {
+      background: #dbeafe;
+      color: #1e3a8a;
+      border-color: #93c5fd;
+    }
+
+    /* Star icon animation */
+    @keyframes twinkle {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.1); }
+    }
+    .star-icon {
+      animation: twinkle 3s ease-in-out infinite;
+    }
+
+    /* CTA button */
+    .cta-button {
+      background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 14px rgba(30, 58, 138, 0.25);
+    }
+    .cta-button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(30, 58, 138, 0.35);
+    }
+    .cta-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Tutorial button */
+    .tutorial-btn {
+      transition: all 0.2s ease;
+    }
+    .tutorial-btn:hover {
+      background: #dbeafe;
+      border-color: #60a5fa;
+    }
+
+    /* Input focus */
+    .input-field {
+      transition: all 0.2s ease;
+    }
+    .input-field:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    /* K-line chart container */
+    #kline-chart {
+      display: block;
+      width: 100%;
+      cursor: crosshair;
+    }
+
+    /* Loading overlay */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid #e5e7eb;
+      border-top-color: #1e3a8a;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Section divider */
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #e5e7eb, transparent);
+    }
+
+    /* Tooltip */
+    .chart-tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+      padding: 12px 16px;
+      font-size: 12px;
+      min-width: 220px;
+      z-index: 50;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+    .chart-tooltip.visible { opacity: 1; }
+
+    /* Print */
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white; }
+    }
+
+    /* Mobile responsive */
+    @media (max-width: 640px) {
+      .hero-title { font-size: 2rem !important; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- Loading overlay -->
+  <div id="loading" class="loading-overlay" style="display: none;">
+    <div class="flex flex-col items-center gap-4">
+      <div class="spinner"></div>
+      <p class="text-sm text-gray-500" id="loading-text">正在排盘...</p>
+    </div>
+  </div>
+
+  <script type="module" src="./js/main.js?v=20260527-3"></script>
+  <script>
+    // 兜底：捕获模块加载错误
+    window.addEventListener('error', (e) => {
+      console.error('[lifekline] 脚本错误:', e.message, e.error);
+      const app = document.getElementById('app');
+      if (app && !app.innerHTML.trim()) {
+        app.innerHTML = `
+          <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;font-family:sans-serif;">
+            <div style="max-width:500px;text-align:center;">
+              <h2 style="color:#dc2626;margin-bottom:12px;">⚠️ 页面加载失败</h2>
+              <p style="color:#6b7280;font-size:14px;line-height:1.6;">
+                错误：${e.message}<br/><br/>
+                请通过 HTTP 服务器访问此页面（不能直接双击 HTML 文件），例如：<br/>
+                <code style="background:#f3f4f6;padding:4px 8px;border-radius:4px;">python3 -m http.server 8000</code><br/>
+                然后访问 <code style="background:#f3f4f6;padding:4px 8px;border-radius:4px;">http://localhost:8000</code>
+              </p>
+            </div>
+          </div>
+        `;
+      }
+    });
+  </script>
+</body>
+</html>
